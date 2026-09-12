@@ -11,7 +11,7 @@ import traceback
 import uuid
 from datetime import datetime, timezone
 
-from . import ai_review, checklist, report
+from . import checklist, providers, report
 from .drawing import detect_drawing_numbers, extract_words, page_count
 from .mark import mark
 
@@ -93,7 +93,7 @@ def _update(job_id: str, **kwargs):
     _write_status(job_id, s)
 
 
-def run_job(job_id: str):
+def run_job(job_id: str, provider: str, api_key: str):
     d = _job_dir(job_id)
     drawing_path = os.path.join(d, "drawing.pdf")
     s = _read_status(job_id)
@@ -117,8 +117,7 @@ def run_job(job_id: str):
             items = items + [it for it in checklist.DEFAULT_ITEMS if it["source"] == "기본(QC)"]
 
         _update(job_id, status="reviewing", step_detail=f"AI 검토 중 (항목 {len(items)}건)")
-        api_key = os.environ["ANTHROPIC_API_KEY"]
-        reviewed = ai_review.run_ai_review(items, words, dwgno_map, api_key)
+        reviewed = providers.run_review(provider, items, words, dwgno_map, api_key)
 
         _update(job_id, status="marking", step_detail="도면에 마킹하는 중")
         mark_entries = [

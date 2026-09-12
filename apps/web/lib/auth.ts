@@ -42,7 +42,7 @@ async function verify<T extends { exp: number }>(secret: string, token: string):
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const key = await importKey(secret);
-  const ok = await crypto.subtle.verify("HMAC", key, fromBase64Url(sig), new TextEncoder().encode(body));
+  const ok = await crypto.subtle.verify("HMAC", key, fromBase64Url(sig) as BufferSource, new TextEncoder().encode(body));
   if (!ok) return null;
   try {
     const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(body))) as T;

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from . import jobs
+from .providers import PROVIDERS
 from .token_auth import verify_upload_token
 
 app = FastAPI(title="도면 QC API")
@@ -29,11 +30,17 @@ def health():
 async def create_job(
     background_tasks: BackgroundTasks,
     token: str = Form(...),
+    provider: str = Form(...),
+    api_key: str = Form(...),
     drawing: UploadFile = File(...),
     checklists: list[UploadFile] = File(default=[]),
 ):
     if not verify_upload_token(token):
         raise HTTPException(status_code=401, detail="업로드 인증 토큰이 유효하지 않습니다.")
+    if provider not in PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"지원하지 않는 LLM 제공자입니다: {provider}")
+    if not api_key.strip():
+        raise HTTPException(status_code=400, detail="API 키를 입력해 주세요.")
 
     drawing_bytes = await drawing.read()
     if len(drawing_bytes) > MAX_DRAWING_MB * 1024 * 1024:
@@ -46,7 +53,7 @@ async def create_job(
         checklist_files.append((f.filename or "checklist", await f.read()))
 
     job_id = jobs.create_job(drawing.filename, drawing_bytes, checklist_files)
-    background_tasks.add_task(jobs.run_job, job_id)
+    background_tasks.add_task(jobs.run_job, job_id, provider, api_key.strip())
     return {"job_id": job_id}
 
 
