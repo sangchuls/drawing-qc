@@ -66,12 +66,31 @@ LLM API 키는 서버 환경변수로 두지 않습니다. 각 사용자가 프�
 
 ## 배포
 
+프론트엔드는 Vercel, 백엔드는 Render에 배포합니다 (하나의 리포를 각 플랫폼이
+서로 다른 하위 디렉토리를 대상으로 빌드).
+
 1. **GitHub**: 이 리포를 push.
-2. **Vercel**: `apps/web`을 프로젝트 루트로 지정해 연결, 위 env var 등록.
-3. **Railway / Fly.io 등**: `apps/api`를 Python 앱으로 배포(uvicorn 실행), 위 env var 등록,
-   `DATA_DIR`이 가리키는 경로에 영구 볼륨을 붙여야 재배포 후에도 기존 작업 결과가 남습니다.
-4. 두 서비스 배포 후 `NEXT_PUBLIC_API_BASE_URL`(web)과 `FRONTEND_ORIGIN`(api)을 서로의
-   실제 주소로 맞춰주세요.
+2. **Vercel** (`apps/web`): 프로젝트 생성 시 **Root Directory를 `apps/web`으로 지정**하고
+   위 "apps/web (.env.local)" 표의 4개 env var를 등록.
+3. **Render** (`apps/api`): 저장소 루트의 [`render.yaml`](render.yaml)이 Blueprint로 자동
+   인식됩니다 — Render 대시보드에서 **New → Blueprint**로 이 저장소를 연결하면 `apps/api`를
+   대상으로 Python 웹 서비스가 구성됩니다. `sync: false`로 표시된 `UPLOAD_TOKEN_SECRET`,
+   `FRONTEND_ORIGIN`만 대시보드에서 직접 입력하면 됩니다.
+   - 지금은 **Free 플랜**으로 설정되어 있습니다 (개발/테스트용). 콜드스타트가 있고
+     재배포·재시작 때마다 `DATA_DIR`의 job 데이터가 초기화됩니다.
+   - 회사 정식 배포 시에는 `render.yaml`에 `plan: starter`와 아래 `disk` 블록을 추가해
+     상시 구동 + 영구 디스크로 전환하세요 (파일 상단 주석 참고):
+     ```yaml
+     plan: starter
+     disk:
+       name: drawing-qc-data
+       mountPath: /var/data
+       sizeGB: 1
+     ```
+     이때 `DATA_DIR` 값도 `/var/data`로 함께 바꿔야 합니다.
+4. 두 서비스 배포 후 서로의 실제 주소로 맞춰주세요:
+   - Vercel의 `NEXT_PUBLIC_API_BASE_URL` → Render가 발급한 주소 (예: `https://drawing-qc-api.onrender.com`)
+   - Render의 `FRONTEND_ORIGIN` → Vercel 프로덕션 도메인 (예: `https://drawing-qc.vercel.app`)
 
 ## 동작 방식
 
